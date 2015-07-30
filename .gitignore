@@ -1,0 +1,5 @@
+/passes_build
+*.ll
+*.o
+*.so
+*~
