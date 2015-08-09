@@ -18,6 +18,8 @@ struct GlobalVarsPass : public ModulePass {
 		static char ID;
 		
 		GlobalVarsPass() : ModulePass(ID) {}
+//		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+		using Pass::doInitialization;
 		virtual bool doInitialization(Module &);
 		virtual bool runOnModule(Module &);
 		virtual bool doFinalization(Module &);

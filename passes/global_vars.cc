@@ -2,33 +2,43 @@
  * Veronika Sokova <xsokov00@stud.fit.vutbr.cz>
  * 
  * All global variables are implicitly initialized to 0 or nullptr.
- * Private "global" variables (StructType) are change to non-constant initalizer
+ * pass modifies static local variable
  * 
  * opt -S -load ./passes_build/libglobalvars.so -global-vars source.ll -o source2.ll
-
-TODO: pass modifies static local variable - shouldn't or ?
-TODO: local constant structure inicializer -> llvm.memcpy
 
 without optimalization: llvm insert allways in @main (an implicit-return-zero function)
   %1 = alloca i32, align 4
   store i32 0, i32* %1
 for possible implicit return 0
 
+TODO: split struct constant (with GEP/load)
+
  */
 
 #include "global_vars.hh"
+#include "passes.hh"
 
-//#include <cstdint> // __STDC_CONSTANT_MACROS __STDC_LIMIT_MACROS
+#include <cstdint> // __STDC_CONSTANT_MACROS __STDC_LIMIT_MACROS
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/IRBuilder.h" // insert code
-#include "llvm/IR/Value.h"
+#include "llvm/IR/IntrinsicInst.h"
 
 using namespace llvm;
 
+#define DEBUG_TYPE "glob-vars"
+
+STATISTIC(NumCopyGV, "Number of non-constant global variables");
+STATISTIC(NumInitGV, "Number of initialized global variables");
+
+// interface
+ModulePass *createGlobalVarsPass() {
+  return new GlobalVarsPass();
+}
 
 bool GlobalVarsPass::doInitialization(Module &) {
 #ifdef DEBUG
-	errs() << "<<<<<<<<START<\n";
+	errs() << "GLOBAL-VARS-START\n";
 #endif
 	return true;
 }
@@ -60,8 +70,10 @@ void GlobalVarsPass::printGlobalVar(GlobalVariable *GV) {
 // one source file as one Module
 // return true, if the module was modified (there are global variables)
 // etc
-
 bool GlobalVarsPass::runOnModule(Module &M) {
+#ifdef DEBUG
+	errs() << "GLOBAL-VARS-MODIFICATION\n";
+#endif
 	bool changeEC = false;
 	
 	Function *mainF;
@@ -88,7 +100,6 @@ bool GlobalVarsPass::runOnModule(Module &M) {
 	IRBuilder<> builder(blockGVF);
 	
 	// insert store instructions and zero-initializer
-
 	for (Module::global_iterator GV = M.global_begin(), GVE = M.global_end(); GV != GVE; ++GV)
 	{
 #ifdef DEBUG
@@ -99,6 +110,7 @@ bool GlobalVarsPass::runOnModule(Module &M) {
 		// copy initializer
 		if (GV->isConstant()==false && GV->isDeclaration()==false) {
 			builder.CreateStore(/*value*/ GV->getInitializer() ,/*ptr*/ GV, /*isVolatile*/false);
+			++NumCopyGV;
 		}
 
 		// nuluj inicializator
@@ -106,47 +118,26 @@ bool GlobalVarsPass::runOnModule(Module &M) {
 			Constant *init = GV->getInitializer();
 			if (!init->isNullValue()) {
 				GV->setInitializer(Constant::getNullValue(GV->getValueType()));
+				++NumInitGV;
 			}
 		}
-
-		// eliminate private "global" structure/string? variables
-		if (GV->isConstant()==true && GV->hasUnnamedAddr()==true && GV->hasPrivateLinkage()) {
-			// auto-generate global constant
-			if (!GV->use_empty())
-				for (Value::use_iterator U = cast<GlobalVariable>(GV)->use_begin(), UE = cast<GlobalVariable>(GV)->use_end(); U != UE; ++U) {
-					U->getUser()->dump();
-
-			/*
-			find all use of GV and use of this use... until se_empty()==true
-			if only use are this two instructions:
-			if (isa<BitCastInst>(...))
-			if (isa<MemCpyInst>(...))
-			replace with*/
-
-			//builder.CreateStore(/*value*/ GV->getInitializer() ,/*ptr*/ bitcast->getOperand(0), /*isVolatile*/false);
-
-			}
-		}
-
 	}
-	
-	// end of function
+
+	// end of inserted function
 	builder.CreateRetVoid();
 	
-#ifdef DEBUG
-	errs() << "<<<<<CNG<FILE<\n";
-#endif
 	return changeEC;
 }
 
-
 bool GlobalVarsPass::doFinalization (Module &) {
 #ifdef DEBUG
-	errs() << "<<<<<<<<<<END<\n";
+	errs() << "GLOBAL-VARS-END\n";
 #endif
 	return true;
 }
 
 // opt pass registration
-char GlobalVarsPass::ID;
-RegisterPass<GlobalVarsPass> X("global-vars", "Global Variable Initialization");
+char GlobalVarsPass::ID = 0;
+static RegisterPass<GlobalVarsPass> X("global-vars", "Global Variable Initialization");
+
+#undef  DEBUG_TYPE
