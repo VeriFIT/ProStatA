@@ -9,8 +9,7 @@ Requirements
 Compiling passes
 ================
 
- $ mkdir passes_build && cd passes_build
- $ cmake ../passes
+ $ cd passes
  $ make
 
 
