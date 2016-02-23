@@ -80,11 +80,9 @@ bool LowerSelectPass::runOnFunction(Function &F) {
 #endif
 	bool changeEC = false;
 
-	SmallPtrSet<Function*, 4> removeFunc; // if replace all uses
-
-	for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB)
-		for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I) {
-			if (SelectInst *in = dyn_cast<SelectInst>(I)) {
+	for (BasicBlock &BB : F)
+		for (Instruction &I : BB) {
+			if (SelectInst *in = dyn_cast<SelectInst>(&I)) {
 				replaceSelect(in);
 				changeEC = true;
 				break; // after split, next bb
