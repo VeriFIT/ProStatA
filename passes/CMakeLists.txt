@@ -36,9 +36,9 @@ add_definitions(${LLVM_DEFINITIONS})
 message(STATUS "Cmake libpath ${CMAKE_LIBRARY_PATH}")
 
 # all LLVM passes
-add_library (passes SHARED global_vars.cc all_inline.cc lower_mem.cc lower_select.cc)
+add_library (passes SHARED global_vars.cc lower_mem.cc lower_select.cc)
 
 # clang plug-in
 # or test.cc to z.B. static library passes.a
-add_library (passes_test SHARED test.cc global_vars.cc all_inline.cc lower_mem.cc lower_select.cc)
+add_library (passes_test SHARED test.cc global_vars.cc lower_mem.cc lower_select.cc)
 

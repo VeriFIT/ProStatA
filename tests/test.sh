@@ -1,10 +1,12 @@
 #!/bin/bash
+SAVEIFS=$IFS
+IFS=$(echo -en "\n\b")
 
 REF_PATH="."
 LOG_PATH="./tmp"
 PASS="../passes_build/libpasses.so"
 #PASS="../passes/libpasses.so"
-LLVM="/usr/local/bin/"
+CLANG=clang
 
 ALL=0
 GOOD=0
@@ -33,22 +35,26 @@ for opt in $ps; do
 	mkdir -p "$LOG_PATH/$opt"
 	OPATH="$LOG_PATH/$opt"
 
-	testcase=$(ls $REF_PATH/$opt/*.c | sed -n "s/^.*\/\(.*\)\.c$/\1/p")
+	testcase=$(ls "$REF_PATH/$opt/"*.c | sed -n "s/^.*\/\(.*\)\.c$/\1/p")
 	for i in $testcase; do
 
 		RESULT="OK"
 		EC=0
 
-#		${LLVM}clang -S -emit-llvm --std=c99 "$REF_PATH/$opt/$i.c" -o "$OPATH/$i.ll"
-#		${LLVM}clang "$OPATH/$i.ll" -o "$OPATH/a.out"
-		${LLVM}clang --std=c99 "$REF_PATH/$opt/$i.c" -o "$OPATH/a.out"
+#		${CLANG} -S -emit-llvm --std=c99 "$REF_PATH/$opt/$i.c" -o "$OPATH/$i.ll"
+#		${CLANG} "$OPATH/$i.ll" -o "$OPATH/a.out"
+		${CLANG} --std=c99 "$REF_PATH/$opt/$i.c" -o "$OPATH/a.out"
 		EC=$(( $? == 0 ? EC : $? ))
 		./$OPATH/a.out > "$OPATH/$i.out" 2> "$OPATH/$i.err"
 		ECA=$?
 
-		${LLVM}clang -S -emit-llvm --std=c99 "$REF_PATH/$opt/$i.c" -o - | opt -S -load "$PASS" -${opt} -o "$OPATH/$i-pass.ll" 2> /dev/null
+		TMPIFS=$IFS
+		IFS=$SAVEIFS
+		${CLANG} -S -emit-llvm --std=c99 "$REF_PATH/$opt/$i.c" -o - | opt -S -load "$PASS" -${opt} -o "$OPATH/$i-pass.ll" 2> /dev/null
 		EC=$(( $? == 0 ? EC : $? ))
-		${LLVM}clang "$OPATH/$i-pass.ll" -o "$OPATH/a.out"
+		IFS=$TMPIFS
+
+		${CLANG} "$OPATH/$i-pass.ll" -o "$OPATH/a.out"
 		EC=$(( $? == 0 ? EC : $? ))
 		./$OPATH/a.out > "$OPATH/$i-pass.out" 2> "$OPATH/$i-pass.err"
 		ECB=$?
@@ -93,5 +99,7 @@ done
 	echo -e "\033[0;36m==========================================================\033[0m"
 	GOOD=$((GOOD*100/ALL))
 	echo "correct: $GOOD%"
+
+IFS=$SAVEIFS
 exit 0
 

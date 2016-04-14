@@ -125,7 +125,7 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 	if (gv && gv->isConstant()==true && gv->hasUnnamedAddr()==true && gv->hasPrivateLinkage()) {
 		// eliminate privat global variable
 		new StoreInst(/*value*/gv->getInitializer(), /*ptr*/dest, /*volatile*/false, align, /*before*/in);
-		gv->eraseFromParent();
+		removeVal.insert(gv);
 		++NumElimGV;
 	} else {
 		// eliminate memcpy
@@ -134,12 +134,12 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 		new StoreInst(/*value*/newVal, /*ptr*/dest, /*volatile*/false, align, /*before*/in);
 
 		if (rawsrc->getNumUses() == 1 && dyn_cast<Instruction>(rawsrc)) {
-			cast<Instruction>(rawsrc)->eraseFromParent();
+			removeVal.insert(rawsrc);
 		}
 	}
 
 	if (rawdest->getNumUses() == 1 && dyn_cast<Instruction>(rawdest)) {
-		cast<Instruction>(rawdest)->eraseFromParent();
+		removeVal.insert(rawdest);
 	}
 	return true;
 }
@@ -156,7 +156,7 @@ void LowerMemIntrinsicPass::replaceMemSet(MemSetInst *in) {
 	              /*ptr*/dest, /*volatile*/false, in->getAlignment(), /*before*/in);
 
 	if (rawdest->getNumUses() == 1 && dyn_cast<Instruction>(rawdest)) {
-		cast<Instruction>(rawdest)->eraseFromParent();
+		removeVal.insert(rawdest);
 	}
 
 }
@@ -284,6 +284,15 @@ bool LowerMemIntrinsicPass::runOnModule(Module &M) {
 	for (auto fnc = removeFunc.begin(), e = removeFunc.end(); fnc != e; ++fnc) {
 		if ((*fnc)->getNumUses() == 0)
 			(*fnc)->eraseFromParent();
+	}
+	for (auto val = removeVal.begin(), e = removeVal.end(); val != e; ++val) {
+			if (dyn_cast<GlobalVariable>(*val))
+				cast<GlobalVariable>(*val)->eraseFromParent();
+			else if (dyn_cast<Instruction>(*val))
+				cast<Instruction>(*val)->eraseFromParent();
+			else
+				errs() << getPassName() << ": Error: Value \'" << (*val)->getName()
+				       << "\' not been erased.\n";
 	}
 
 	return changeEC;

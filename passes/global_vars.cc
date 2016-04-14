@@ -104,12 +104,12 @@ bool GlobalVarsPass::runOnModule(Module &M) {
 	{
 #ifdef DEBUG
 		//errs() << "<GV<<<<<ID:" << M.getMDKindID(GV->getName()) ;
-		printGlobalVar(GV);
+		printGlobalVar(&*GV);
 #endif
 
 		// copy initializer
 		if (GV->isConstant()==false && GV->isDeclaration()==false) {
-			builder.CreateStore(/*value*/ GV->getInitializer() ,/*ptr*/ GV, /*isVolatile*/false);
+			builder.CreateStore(/*value*/ GV->getInitializer() ,/*ptr*/ &*GV, /*isVolatile*/false);
 			++NumCopyGV;
 		}
 

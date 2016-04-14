@@ -16,8 +16,10 @@
 using namespace llvm;
 
 struct LowerMemIntrinsicPass : public ModulePass {
+	protected:
 		bool justGV;
 		DataLayout *DL;
+		SmallPtrSet<Value*, 8> removeVal;
 
 	public:
 		static char ID;
@@ -29,6 +31,7 @@ struct LowerMemIntrinsicPass : public ModulePass {
 		virtual bool doInitialization(Module &);
 		virtual bool runOnModule(Module &);
 		virtual bool doFinalization(Module &);
+
 	private:
 		bool testMem(MemIntrinsic *);
 		bool testMemTransfer(MemTransferInst *);
