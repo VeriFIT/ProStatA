@@ -1,5 +1,5 @@
 /** 
- * Veronika Sokova <xsokov00@stud.fit.vutbr.cz>
+ * Copyright (C) 2015-2016 Veronika Sokova <xsokov00@stud.fit.vutbr.cz>
  * 
  * Eliminate llvm.memset / llvm.memcpy / (llvm.memmove) if possible
  * create corresponding function
@@ -27,10 +27,12 @@ STATISTIC(NumElimMCpy, "Number of eliminated memcpy");
 
 // interface
 ModulePass *createLowerMemIntrinsicPass(bool justGV) {
-  return new LowerMemIntrinsicPass(justGV);
+
+	return new LowerMemIntrinsicPass(justGV);
 }
 
 bool LowerMemIntrinsicPass::doInitialization(Module &M) {
+
 #ifdef DEBUG
 	errs() << "LOWER-MEM-START\n";
 #endif
@@ -43,6 +45,7 @@ bool LowerMemIntrinsicPass::doInitialization(Module &M) {
 //    len type != mem len
 //  [ dest align != mem align (or unknown) ]
 bool LowerMemIntrinsicPass::testMem(MemIntrinsic *in) {
+
 	if (in->isVolatile()) // behavior ?
 		return false;
 
@@ -104,6 +107,7 @@ bool LowerMemIntrinsicPass::testMemTransfer(MemTransferInst *in) {
 //    len type != mem len
 //  [ dest align != mem align (or unknown) ]
 bool LowerMemIntrinsicPass::testMemSet(MemSetInst *in) {
+
 	if (ConstantInt *val = dyn_cast<ConstantInt>(in->getValue())) {
 		if(!val->isNullValue())
 			return false;
@@ -112,7 +116,7 @@ bool LowerMemIntrinsicPass::testMemSet(MemSetInst *in) {
 }
 
 // replace memcpy/memove -> load + store (if replace -> true)
-// TODO: memove and GV ?
+// TODO: memove
 bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 
 	auto dest = in->getDest();
@@ -123,8 +127,14 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 
 	GlobalVariable *gv = dyn_cast<GlobalVariable>(src);
 	if (gv && gv->isConstant()==true && gv->hasUnnamedAddr()==true && gv->hasPrivateLinkage()) {
+		/*if (ConstantDataSequential *c = dyn_cast<ConstantDataSequential>(gv->getInitializer())) {
+			if (c->isCString()) {
+				return false;
+			}
+		}*/
 		// eliminate privat global variable
-		new StoreInst(/*value*/gv->getInitializer(), /*ptr*/dest, /*volatile*/false, align, /*before*/in);
+		//new StoreInst(/*value*/gv->getInitializer(), /*ptr*/dest, /*volatile*/false, align, /*before*/in);
+		splitAggregateConstant(in, gv->getInitializer(), dest);
 		removeVal.insert(gv);
 		++NumElimGV;
 	} else {
@@ -133,7 +143,7 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 		Value* newVal = new LoadInst(/*ptr*/src, /*name*/"", /*volatile*/false, align, /*before*/in);
 		new StoreInst(/*value*/newVal, /*ptr*/dest, /*volatile*/false, align, /*before*/in);
 
-		if (rawsrc->getNumUses() == 1 && dyn_cast<Instruction>(rawsrc)) {
+		if (rawsrc->getNumUses() == 1 && isa<Instruction>(rawsrc)) {
 			removeVal.insert(rawsrc);
 		}
 	}
@@ -146,14 +156,14 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 
 // replace memset with zero or null or zeroinitializer
 void LowerMemIntrinsicPass::replaceMemSet(MemSetInst *in) {
-	
+
 	auto dest = in->getDest();
 	auto rawdest = in->getRawDest();
 
 	// eliminate memset
-	//dest->getType()->getPointerElementType()
-	new StoreInst(/*value*/Constant::getNullValue(dest->getType()->getPointerElementType()), 
-	              /*ptr*/dest, /*volatile*/false, in->getAlignment(), /*before*/in);
+	//new StoreInst(/*value*/Constant::getNullValue(dest->getType()->getPointerElementType()), 
+	//              /*ptr*/dest, /*volatile*/false, in->getAlignment(), /*before*/in);
+	splitAggregateConstant(in, Constant::getNullValue(dest->getType()->getPointerElementType()), dest);
 
 	if (rawdest->getNumUses() == 1 && dyn_cast<Instruction>(rawdest)) {
 		removeVal.insert(rawdest);
@@ -161,8 +171,118 @@ void LowerMemIntrinsicPass::replaceMemSet(MemSetInst *in) {
 
 }
 
+void LowerMemIntrinsicPass::splitAggregateConstant(Instruction *before, Constant *c, Value *ptr) {
+
+	Type *cTy = c->getType();
+
+	if (!cTy->isAggregateType()) { //simple constant
+		new StoreInst(c, ptr, false, before);
+		return;
+	}
+
+	// aggregate type
+	unsigned numElms;
+	if (isa<StructType>(cTy))
+		numElms = cTy->getStructNumElements();
+	else if (isa<ArrayType>(cTy))
+		numElms = cTy->getArrayNumElements();
+	else {
+		errs() << getPassName() << ": Error: Unsupported type for aggregate constant \'" 
+		       << *c << "\'\n";
+		new StoreInst(c, ptr, false, before); // insert not change
+		return;
+	}
+
+	LLVMContext &cxt = before->getParent()->getContext();
+	Value *idx[2];
+	idx[0] = ConstantInt::get(cxt, APInt(/*bits*/ 32, 0));
+
+	for (unsigned i = 0; i < numElms; ++i) {
+	
+		Constant *elmVal = c->getAggregateElement(i);
+		idx[1] = ConstantInt::get(cxt, APInt(/*bits*/ 32, i));
+		Type *elmTy = elmVal->getType();
+		Value *elmPtr = GetElementPtrInst::CreateInBounds(cTy, ptr, ArrayRef<Value*>(idx), "", before);
+
+		if (elmTy->isAggregateType()) { // recursion
+			splitAggregateConstant(before, elmVal, elmPtr);
+		} else {
+			new StoreInst(/*value*/ elmVal,/*ptr*/ elmPtr, /*isVolatile*/false, before);
+		}
+	}
+}
+
+void LowerMemIntrinsicPass::printMemCpyInst(MemCpyInst *in) {
+
+	auto dest = in->getDest();
+	auto src = in->getSource();
+	auto rawdest = in->getRawDest();
+	auto rawsrc = in->getRawSource();
+	unsigned align = in->getAlignment();
+
+	errs() << "S------------------------------------------------\n";
+	errs() << "dest: "; dest->dump();
+	errs() << "src: "; src->dump();
+	errs() << "rawdest: "; rawdest->dump();
+	errs() << "rawsrc: "; rawsrc->dump();
+	if (in->getDest()->getType()->getPointerElementType() == in->getSource()->getType()->getPointerElementType())
+		errs() << "\tOK\n"; // INAK NEJDE ELIMINOVAT
+	errs() << "len: "; //uint64_t
+	if (ConstantInt *len = dyn_cast<ConstantInt>(in->getLength())) {
+		errs() << len->getValue().getZExtValue();
+	} else { // NEJDE ELIMINOVAT
+		errs() << "-";
+	}
+	// types are eq
+	errs() << " / " << DL->getTypeSizeInBits(dest->getType()->getPointerElementType())/8 << "\n";
+	errs() << "align: " << in->getAlignment() << " / ";
+
+	if (align != 0 && align != 1) { // 0/1 => no alignment
+		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(dest)) {
+			errs() << gv->getAlignment();
+		} else if (AllocaInst *a = dyn_cast<AllocaInst>(dest)) {
+			errs() << a->getAlignment();
+		} else { // must be pointer
+			errs() << /*src->getAlignment() <<*/ "?";
+		}
+		errs() << "(dest) / ";
+		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(src)) {
+			errs() << gv->getAlignment();
+		} else if (AllocaInst *a = dyn_cast<AllocaInst>(src)) {
+			errs() << a->getAlignment();
+		} else { // must be pointer
+			errs() << /*src->getAlignment() <<*/ "?";
+		}
+		errs() << "(src)\n";
+	} else errs() << "no align\n";
+
+
+	if (isa<ConstantExpr>(rawdest)) {
+		if (dest->getNumUses() == 1) {
+			errs() << "remove-dest: "; dest->dump();
+		}
+	} else {
+		if (rawdest->getNumUses() == 1) {
+			errs() << "remove-rawdest: "; rawdest->dump();
+		}
+	}
+	if (isa<ConstantExpr>(rawsrc)) {
+		if (src->getNumUses() == 1) {
+			errs() << "remove-src: "; src->dump();
+		}
+	} else {
+		if (rawsrc->getNumUses() == 1) {
+			errs() << "remove-rawsrc: "; rawsrc->dump();
+		}
+	}
+
+	errs() << "PERFECTO\n";
+	errs() << "E------------------------------------------------\n";
+}
+
 
 bool LowerMemIntrinsicPass::runOnModule(Module &M) {
+
 #ifdef DEBUG
 	errs() << "LOWER-MEM-MODIFICATION\n";
 #endif
@@ -194,78 +314,8 @@ bool LowerMemIntrinsicPass::runOnModule(Module &M) {
 				//@llvm.memcpy : i8* <dest>, i8* <src>, i64 <len>, i32 <align>, i1 <isvolatile>
 #ifdef DEBUG
 					in->dump();
+					printMemCpyInst(in);
 #endif
-
-
-#ifdef DEBUG
-								auto dest = in->getDest();
-								auto src = in->getSource();
-								auto rawdest = in->getRawDest();
-								auto rawsrc = in->getRawSource();
-								unsigned align = in->getAlignment();
-
-								errs() << "S------------------------------------------------\n";
-								errs() << "dest: "; dest->dump();
-								errs() << "src: "; src->dump();
-								errs() << "rawdest: "; rawdest->dump();
-								errs() << "rawsrc: "; rawsrc->dump();
-								if (in->getDest()->getType()->getPointerElementType() == in->getSource()->getType()->getPointerElementType())
-									errs() << "\tOK\n"; // INAK NEJDE ELIMINOVAT
-								errs() << "len: "; //uint64_t
-								if (ConstantInt *len = dyn_cast<ConstantInt>(in->getLength())) {
-									errs() << len->getValue().getZExtValue();
-								} else { // NEJDE ELIMINOVAT
-									errs() << "-";
-								}
-								// types are eq
-								errs() << " / " << DL->getTypeSizeInBits(dest->getType()->getPointerElementType())/8 << "\n";
-								errs() << "align: " << in->getAlignment() << " / ";
-
-							if (align != 0 && align != 1) { // 0/1 => no alignment
-								if (GlobalVariable *gv = dyn_cast<GlobalVariable>(dest)) {
-									errs() << gv->getAlignment();
-								} else if (AllocaInst *a = dyn_cast<AllocaInst>(dest)) {
-									errs() << a->getAlignment();
-								} else { // must be pointer
-									errs() << /*src->getAlignment() <<*/ "?";
-								}
-								errs() << "(dest) / ";
-								if (GlobalVariable *gv = dyn_cast<GlobalVariable>(src)) {
-									errs() << gv->getAlignment();
-								} else if (AllocaInst *a = dyn_cast<AllocaInst>(src)) {
-									errs() << a->getAlignment();
-								} else { // must be pointer
-									errs() << /*src->getAlignment() <<*/ "?";
-								}
-								errs() << "(src)\n";
-							} else errs() << "no align\n";
-
-
-								if (isa<ConstantExpr>(rawdest)) {
-									if (dest->getNumUses() == 1) {
-										errs() << "remove-dest: "; dest->dump();
-									}
-								} else {
-									if (rawdest->getNumUses() == 1) {
-										errs() << "remove-rawdest: "; rawdest->dump();
-									}
-								}
-								if (isa<ConstantExpr>(rawsrc)) {
-									if (src->getNumUses() == 1) {
-										errs() << "remove-src: "; src->dump();
-									}
-								} else {
-									if (rawsrc->getNumUses() == 1) {
-										errs() << "remove-rawsrc: "; rawsrc->dump();
-									}
-								}
-
-									errs() << "PERFECTO\n";
-									errs() << "E------------------------------------------------\n";
-#endif
-
-
-
 					if (!testMemTransfer(in))
 						continue;
 					if (!replaceMemTransfer(in))
@@ -286,9 +336,9 @@ bool LowerMemIntrinsicPass::runOnModule(Module &M) {
 			(*fnc)->eraseFromParent();
 	}
 	for (auto val = removeVal.begin(), e = removeVal.end(); val != e; ++val) {
-			if (dyn_cast<GlobalVariable>(*val))
+			if (isa<GlobalVariable>(*val))
 				cast<GlobalVariable>(*val)->eraseFromParent();
-			else if (dyn_cast<Instruction>(*val))
+			else if (isa<Instruction>(*val))
 				cast<Instruction>(*val)->eraseFromParent();
 			else
 				errs() << getPassName() << ": Error: Value \'" << (*val)->getName()
@@ -300,6 +350,7 @@ bool LowerMemIntrinsicPass::runOnModule(Module &M) {
 
 
 bool LowerMemIntrinsicPass::doFinalization (Module &M) {
+
 #ifdef DEBUG
 	errs() << "LOWER-MEM-END\n";
 //	errs() << "GV:"<< NumElimGV << ",CPY:" << NumElimMCpy << ",SET:" << NumElimMSet << "\n";

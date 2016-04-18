@@ -1,5 +1,5 @@
 /** 
- * Veronika Sokova <xsokov00@stud.fit.vutbr.cz>
+ * Copyright (C) 2015-2016 Veronika Sokova <xsokov00@stud.fit.vutbr.cz>
  * 
  * Eliminate llvm.memset / llvm.memcpy / (llvm.memmove) if possible
  * create corresponding function
@@ -38,7 +38,8 @@ struct LowerMemIntrinsicPass : public ModulePass {
 		bool testMemSet(MemSetInst *);
 		bool replaceMemTransfer(MemTransferInst *);
 		void replaceMemSet(MemSetInst *);
-//		void printMemCpy(MemTransferInst *);
+		void splitAggregateConstant(Instruction *before, Constant *c, Value *ptr);
+		void printMemCpyInst(MemCpyInst *);
 };
 
 #endif /* H_LOWER_MEM_H */

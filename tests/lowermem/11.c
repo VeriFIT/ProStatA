@@ -1,4 +1,4 @@
-// almost the same structures
+// almost the same structures, memcpy not eliminate
 #include <string.h>
 #include <stdio.h>
 
