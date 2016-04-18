@@ -102,28 +102,6 @@ void GlobalVarsPass::splitAggregateConstant(IRBuilder<> *builder, Constant *c, V
 	}
 }
 
-	/*
-	walkStructConstant(storeInst->getPointerOperand(), constStruct, storeInst);
-void walkStructConstant(Value *PtrVal, ConstantStruct *StructVal, Instruction *LastInst) {
-      StructType *StructType = StructVal->getType();
-      Value *ZeroVal = ConstantInt::get(StructType->getContext(), APInt(32, 0));
-
-      for (unsigned I = 0, E = StructType->getNumElements(); I < E; ++I) {
-        Value *ElementVal = StructVal->getOperand(I);
-
-        Value *IndexVal = ConstantInt::get(StructType->getContext(), APInt(32, I));
-        Value *GEPIndexes[2] = { ZeroVal, IndexVal };
-        Instruction *ElementPtr = GetElementPtrInst::CreateInBounds(
-                PtrVal, ArrayRef<Value*>(GEPIndexes, GEPIndexes + 2), "", LastInst);
-
-        if (ConstantStruct* constStruct = dyn_cast<ConstantStruct>(ElementVal)) {
-          walkStructConstant(ElementPtr, constStruct, LastInst);
-        } else {
-          new StoreInst(ElementVal, ElementPtr, LastInst);
-        }
-      }
-}*/
-
 
 // one source file as one Module
 // return true, if the module was modified (there are global variables)
