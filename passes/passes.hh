@@ -24,5 +24,9 @@ llvm::Pass *createAllAsInlinePass(bool InsertLifetime=false);
 // Eliminate SelectInst -> create true and false branches
 llvm::FunctionPass *createLowerSelectPass();
 
+// Eliminate PHINode -> assignment moves to previous BasicBlock
+// if LowerSelectPass, call after it
+// Output: not SSA form
+llvm::FunctionPass *createEliminatePHIPass();
 
 #endif /* H_PASSES_H */
