@@ -40,7 +40,7 @@ Value *EliminatePHIPass::getAssign(PHINode *in) {
 		// not found -> create new variable with alloca
 
 		// 1st instruction in function
-		Instruction *before = in->getParent()->getParent()->getEntryBlock().begin();
+		Instruction *before = &*(in->getParent()->getParent()->getEntryBlock().begin());
 		// getFunction === getParent()->getParent() clang 3.8++
 		Value *newPtr = new AllocaInst(in->getType(), "phi_ptr", /*before*/before);
 
