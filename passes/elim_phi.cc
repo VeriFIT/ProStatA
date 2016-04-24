@@ -42,10 +42,14 @@ Value *EliminatePHIPass::getAssign(PHINode *in) {
 		// 1st instruction in function
 		Instruction *before = &*(in->getParent()->getParent()->getEntryBlock().begin());
 		// getFunction === getParent()->getParent() clang 3.8++
-		Value *newPtr = new AllocaInst(in->getType(), "phi_ptr", /*before*/before);
+		Value *newPtr = new AllocaInst(in->getType(), 
+		               /*name*/(in->hasName()? in->getName()+"_ptr" : "phi_ptr"),
+		               /*before*/before);
 
 		before = in->getParent()->getFirstNonPHI();
-		Value* newVal = new LoadInst(/*ptr*/newPtr, /*name*/"phi_val", /*before*/before);
+		Value* newVal = new LoadInst(/*ptr*/newPtr, 
+		               /*name*/(in->hasName()? in->getName()+"_val": "phi_val"), 
+		               /*before*/before);
 		in->replaceAllUsesWith(newVal);
 
 		PHIMap.insert({in, newPtr});
