@@ -92,7 +92,7 @@ void EliminatePHIPass::replacePHIAssign(BasicBlock *fromBB, BasicBlock *phiBB, B
 bool EliminatePHIPass::runOnFunction(Function &F) {
 
 #ifdef DEBUG
-	errs() << "LOWER-SELECT-MODIFICATION: " << F.getName() << "\n";
+	errs() << "ELIM-PHI-MODIFICATION: " << F.getName() << "\n";
 #endif
 	bool changeEC = false;
 
