@@ -1,5 +1,5 @@
 /** 
- * Veronika Sokova <xsokov00@stud.fit.vutbr.cz>
+ * Copyright (C) 2015-2016 Veronika Sokova <xsokov00@stud.fit.vutbr.cz>
  * 
  * Interface for registration LLVM passes
  */
@@ -28,5 +28,11 @@ llvm::FunctionPass *createLowerSelectPass();
 // if LowerSelectPass, call after it
 // Output: not SSA form
 llvm::FunctionPass *createEliminatePHIPass();
+
+// Eliminate ConstantExpr as operand -> create as instruction and
+// operand is replaced with result of instruction
+// if GlobalVarsPass, call after it
+// Output: don't eliminate CEs in global variables (not apply with GlobalVarsPass)
+llvm::BasicBlockPass *createEliminateConstExprPass();
 
 #endif /* H_PASSES_H */
