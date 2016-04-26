@@ -133,7 +133,6 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 			}
 		}*/
 		// eliminate privat global variable
-		//new StoreInst(/*value*/gv->getInitializer(), /*ptr*/dest, /*volatile*/false, align, /*before*/in);
 		splitAggregateConstant(in, gv->getInitializer(), dest);
 		removeVal.insert(gv);
 		++NumElimGV;
@@ -161,8 +160,6 @@ void LowerMemIntrinsicPass::replaceMemSet(MemSetInst *in) {
 	auto rawdest = in->getRawDest();
 
 	// eliminate memset
-	//new StoreInst(/*value*/Constant::getNullValue(dest->getType()->getPointerElementType()), 
-	//              /*ptr*/dest, /*volatile*/false, in->getAlignment(), /*before*/in);
 	splitAggregateConstant(in, Constant::getNullValue(dest->getType()->getPointerElementType()), dest);
 
 	if (rawdest->getNumUses() == 1 && dyn_cast<Instruction>(rawdest)) {
@@ -187,6 +184,7 @@ void LowerMemIntrinsicPass::splitAggregateConstant(Instruction *before, Constant
 	else if (isa<ArrayType>(cTy))
 		numElms = cTy->getArrayNumElements();
 	else {
+		// assert(false && "Unsupported type for aggregate constant.\n");
 		errs() << getPassName() << ": Error: Unsupported type for aggregate constant \'" 
 		       << *c << "\'\n";
 		new StoreInst(c, ptr, false, before); // insert not change
@@ -341,8 +339,9 @@ bool LowerMemIntrinsicPass::runOnModule(Module &M) {
 			else if (isa<Instruction>(*val))
 				cast<Instruction>(*val)->eraseFromParent();
 			else
-				errs() << getPassName() << ": Error: Value \'" << (*val)->getName()
-				       << "\' not been erased.\n";
+				assert(false && "Value not been erased.\n");
+				//errs() << getPassName() << ": Error: Value \'" << (*val)->getName()
+				//       << "\' not been erased.\n";
 	}
 
 	return changeEC;
@@ -353,7 +352,6 @@ bool LowerMemIntrinsicPass::doFinalization (Module &M) {
 
 #ifdef DEBUG
 	errs() << "LOWER-MEM-END\n";
-//	errs() << "GV:"<< NumElimGV << ",CPY:" << NumElimMCpy << ",SET:" << NumElimMSet << "\n";
 #endif
 	return true;
 }
