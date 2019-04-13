@@ -123,9 +123,7 @@ bool GlobalVarsPass::runOnModule(Module &M) {
 	
 	// create new function
 	Constant *c = M.getOrInsertFunction("__initGlobalVar", 
-		/* ret type */ Type::getVoidTy(M.getContext()),
-		/* argument */ //Type::getVoidTy(M.getContext()),
-		               nullptr);
+		/* ret type */ Type::getVoidTy(M.getContext()));
 	Function *initGVF = cast<Function>(c);
 
 	// insert call function to main (as first instruction)
