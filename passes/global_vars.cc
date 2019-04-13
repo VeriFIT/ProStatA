@@ -132,7 +132,7 @@ bool GlobalVarsPass::runOnModule(Module &M) {
 	CallInst::Create(/*called*/initGVF, /*ret*/"", /*before*/mainF->begin()->getFirstNonPHI());
 
 	// beginning of function
-	BasicBlock* blockGVF = BasicBlock::Create(getGlobalContext(), "entry", initGVF);
+	BasicBlock* blockGVF = BasicBlock::Create(M.getContext(), "entry", initGVF);
 	IRBuilder<> builder(blockGVF);
 	
 	// insert store instructions and zero-initializer
