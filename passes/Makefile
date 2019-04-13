@@ -18,6 +18,7 @@ all:
 	mkdir -p ../passes_build
 	cd ../passes_build && $(CMAKE) ../passes
 	$(MAKE) -C ../passes_build
+	cd ../tests && ./test.sh
 
 # or not
 local: $(LIBS)
