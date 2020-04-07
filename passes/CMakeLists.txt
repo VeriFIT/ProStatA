@@ -23,7 +23,12 @@ endif()
 #find_package(LLVM 3.4)
 #set(LLVM_CMAKE_DIR "/usr/share/llvm/cmake")
 
-add_definitions (-std=c++11 -fPIC)
+if(${LLVM_VERSION_MAJOR} VERSION_GREATER_EQUAL "10.0")
+    add_definitions(-std=c++14)
+else()
+    add_definitions(-std=c++11)
+endif()
+add_definitions(-fPIC)
 
 if(NOT LLVM_ENABLE_RTTI)
     add_definitions (-fno-rtti)
