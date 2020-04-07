@@ -122,8 +122,14 @@ bool GlobalVarsPass::runOnModule(Module &M) {
 	changeEC = true;
 	
 	// create new function
-	Constant *c = M.getOrInsertFunction("__initGlobalVar", 
+#if LLVM_VERSION_MAJOR >= 9
+	FunctionCallee callee = M.getOrInsertFunction("__initGlobalVar",
 		/* ret type */ Type::getVoidTy(M.getContext()));
+	Value *c = callee.getCallee();
+#else
+	Constant *c = M.getOrInsertFunction("__initGlobalVar",
+		/* ret type */ Type::getVoidTy(M.getContext()));
+#endif
 	Function *initGVF = cast<Function>(c);
 
 	// insert call function to main (as first instruction)
