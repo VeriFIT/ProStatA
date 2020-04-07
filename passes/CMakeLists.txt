@@ -39,7 +39,6 @@ message(STATUS "Cmake libpath ${CMAKE_LIBRARY_PATH}")
 # all LLVM passes
 #add_library (passes SHARED global_vars.cc lower_mem.cc lower_select.cc elim_phi.cc elim_const_expr.cc)
 add_library (passes SHARED global_vars.cc elim_const_expr.cc nestedgep.cc)
-set_target_properties(passes PROPERTIES LINK_FLAGS -Wl)
 
 # set the full path of libsl.so/.dylib
 set(LIBPASSES_PATH ${PROJECT_BINARY_DIR}/libpasses${CMAKE_SHARED_LIBRARY_SUFFIX})
