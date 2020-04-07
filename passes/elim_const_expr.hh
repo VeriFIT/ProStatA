@@ -16,15 +16,15 @@
 
 using namespace llvm;
 
-struct EliminateConstExprPass : public BasicBlockPass {
+struct EliminateConstExprPass : public FunctionPass {
 
 	public:
 		static char ID;
 
-		EliminateConstExprPass() : BasicBlockPass(ID) {}
-		virtual bool doInitialization(Module &);
-		virtual bool runOnBasicBlock(BasicBlock &);
-		virtual bool doFinalization(Module &);
+		EliminateConstExprPass() : FunctionPass(ID) {}
+		bool doInitialization(Module &) override;
+		bool runOnFunction(Function &) override;
+		bool doFinalization(Module &) override;
 
 	private:
 		bool testConstExpr(Value *);
