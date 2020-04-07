@@ -33,6 +33,6 @@ llvm::FunctionPass *createEliminatePHIPass();
 // operand is replaced with result of instruction
 // if GlobalVarsPass, call after it
 // Output: don't eliminate CEs in global variables (not apply with GlobalVarsPass)
-llvm::BasicBlockPass *createEliminateConstExprPass();
+llvm::FunctionPass *createEliminateConstExprPass();
 
 #endif /* H_PASSES_H */

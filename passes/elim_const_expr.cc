@@ -15,7 +15,7 @@
 using namespace llvm;
 
 // interface
-BasicBlockPass *createEliminateConstExprPass() {
+FunctionPass *createEliminateConstExprPass() {
 	return new EliminateConstExprPass();
 }
 
@@ -82,23 +82,24 @@ bool EliminateConstExprPass::findConstExprForCall(CallInst *in) {
 	return find;
 }
 
-bool EliminateConstExprPass::runOnBasicBlock(BasicBlock &BB) {
+bool EliminateConstExprPass::runOnFunction(Function &F) {
 
 	bool changeEC = false;
 #ifdef DEBUG
 	errs() << "=================================================\n";
 #endif
 
-	for (Instruction &I : BB) {
+	for (BasicBlock &BB : F) {
+		for (Instruction &I : BB) {
 #ifdef DEBUG
-		errs() << "----"<<I<<"\n";
+			errs() << "----"<<I<<"\n";
 #endif
-		if (CallInst *call = dyn_cast<CallInst>(&I)) {
-			changeEC = findConstExprForCall(call);
-		} else {
-			changeEC = findConstExpr(&I);
+			if (CallInst *call = dyn_cast<CallInst>(&I)) {
+				changeEC = findConstExprForCall(call);
+			} else {
+				changeEC = findConstExpr(&I);
+			}
 		}
-
 	}
 #ifdef DEBUG
 	errs() << "=================================================\n";
