@@ -1,6 +1,7 @@
 #ifndef H_CONSTGEP_H
 #define H_CONSTGEP_H
 
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"

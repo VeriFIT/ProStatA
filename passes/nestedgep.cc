@@ -1,5 +1,6 @@
 #include "nestedgep.hh"
 
+#include <llvm/ADT/iterator_range.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
@@ -12,7 +13,10 @@ bool NestedGepPass::runOnFunction(Function &F) {
     for (auto &bb : F) {
         for (auto &ins : bb) {
             if (auto *gep = dyn_cast_or_null<GetElementPtrInst>(&ins)) {
-                processOperandList(gep->indices());
+                // LLVM 4 and lower do not provide GetElementPtrInst::indices
+                // which is, however, nothing else than an inline call to
+                // llvm::make_range.
+                processOperandList(make_range(gep->idx_begin(), gep->idx_end()));
             }
         }
     }
