@@ -60,7 +60,7 @@ bool LowerMemIntrinsicPass::testMem(MemIntrinsic *in) {
 		return false;
 	}
 
-	unsigned align = in->getAlignment();
+	unsigned align = in->getRetAlignment();
 	if (align != 0 && align != 1) { // 0/1 => no alignment
 		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(dest)) {
 			if (gv->getAlignment() != align)
@@ -87,7 +87,7 @@ bool LowerMemIntrinsicPass::testMemTransfer(MemTransferInst *in) {
 	if (dest->getType()->getPointerElementType() != src->getType()->getPointerElementType())
 		return false;
 
-	unsigned align = in->getAlignment();
+	unsigned align = in->getRetAlignment();
 	if (align != 0 && align != 1) { // 0/1 => no alignment
 		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(src)) {
 			if (gv->getAlignment() != align)
@@ -123,10 +123,10 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 	auto src = in->getSource();
 	auto rawdest = in->getRawDest();
 	auto rawsrc = in->getRawSource();
-	unsigned align = in->getAlignment();
+	unsigned align = in->getRetAlignment();
 
 	GlobalVariable *gv = dyn_cast<GlobalVariable>(src);
-	if (gv && gv->isConstant()==true && gv->hasUnnamedAddr()==true && gv->hasPrivateLinkage()) {
+	if (gv && gv->isConstant()==true && gv->hasGlobalUnnamedAddr()==true && gv->hasPrivateLinkage()) {
 		/*if (ConstantDataSequential *c = dyn_cast<ConstantDataSequential>(gv->getInitializer())) {
 			if (c->isCString()) {
 				return false;
@@ -136,7 +136,9 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 		splitAggregateConstant(in, gv->getInitializer(), dest);
 		removeVal.insert(gv);
 		++NumElimGV;
-	} else {
+	}
+#if 0
+    else {
 		// eliminate memcpy
 		if (justGV) return false;
 		Value* newVal = new LoadInst(/*ptr*/src, /*name*/"", /*volatile*/false, align, /*before*/in);
@@ -146,6 +148,7 @@ bool LowerMemIntrinsicPass::replaceMemTransfer(MemTransferInst *in) {
 			removeVal.insert(rawsrc);
 		}
 	}
+#endif
 
 	if (rawdest->getNumUses() == 1 && dyn_cast<Instruction>(rawdest)) {
 		removeVal.insert(rawdest);
@@ -216,7 +219,7 @@ void LowerMemIntrinsicPass::printMemCpyInst(MemCpyInst *in) {
 	auto src = in->getSource();
 	auto rawdest = in->getRawDest();
 	auto rawsrc = in->getRawSource();
-	unsigned align = in->getAlignment();
+	unsigned align = in->getRetAlignment();
 
 	errs() << "S------------------------------------------------\n";
 	errs() << "dest: "; dest->dump();
@@ -233,7 +236,7 @@ void LowerMemIntrinsicPass::printMemCpyInst(MemCpyInst *in) {
 	}
 	// types are eq
 	errs() << " / " << DL->getTypeSizeInBits(dest->getType()->getPointerElementType())/8 << "\n";
-	errs() << "align: " << in->getAlignment() << " / ";
+	errs() << "align: " << in->getRetAlignment() << " / ";
 
 	if (align != 0 && align != 1) { // 0/1 => no alignment
 		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(dest)) {
@@ -333,15 +336,16 @@ bool LowerMemIntrinsicPass::runOnModule(Module &M) {
 		if ((*fnc)->getNumUses() == 0)
 			(*fnc)->eraseFromParent();
 	}
+
 	for (auto val = removeVal.begin(), e = removeVal.end(); val != e; ++val) {
-			if (isa<GlobalVariable>(*val))
-				cast<GlobalVariable>(*val)->eraseFromParent();
-			else if (isa<Instruction>(*val))
-				cast<Instruction>(*val)->eraseFromParent();
-			else
-				assert(false && "Value not been erased.\n");
-				//errs() << getPassName() << ": Error: Value \'" << (*val)->getName()
-				//       << "\' not been erased.\n";
+        if (isa<GlobalVariable>(*val))
+            cast<GlobalVariable>(*val)->eraseFromParent();
+        else if (isa<Instruction>(*val))
+            cast<Instruction>(*val)->eraseFromParent();
+        else
+            (*val)->deleteValue();
+        //errs() << getPassName() << ": Error: Value \'" << (*val)->getName()
+        //       << "\' not been erased.\n";
 	}
 
 	return changeEC;
