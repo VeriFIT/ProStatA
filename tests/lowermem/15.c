@@ -1,0 +1,1 @@
+../global-vars/10.c
