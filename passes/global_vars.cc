@@ -66,6 +66,8 @@ void GlobalVarsPass::printGlobalVar(GlobalVariable *GV) {
 }
 
 void GlobalVarsPass::splitAggregateConstant(IRBuilder<> *builder, Constant *c, Value *ptr) {
+	if (isa<UndefValue>(c))
+		return;
 
 	Type *cTy = c->getType();
 
@@ -90,6 +92,8 @@ void GlobalVarsPass::splitAggregateConstant(IRBuilder<> *builder, Constant *c, V
 	for (unsigned i = 0; i < numElms; ++i) {
 	
 		Constant *elmVal = c->getAggregateElement(i);
+		if (isa<UndefValue>(elmVal))
+			continue;
 		Type *elmTy = elmVal->getType();
 		Value *elmPtr = builder->CreateConstGEP2_32(cTy, ptr, /*idx0*/0, /*idx1*/i, "");
 		//builder->CreateStructGEP(cTy, ptr,/*idx*/i, "");
