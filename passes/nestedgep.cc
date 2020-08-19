@@ -4,9 +4,19 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
+#include <memory>
 #include <vector>
 
 using namespace llvm;
+
+static void deleteVirtualInstruction(Instruction* inst) {
+    inst->deleteValue();
+}
+
+using VirtualInst = std::unique_ptr<Instruction, void(*)(Instruction*)>;
+static VirtualInst toInst(ConstantExpr* ce){
+    return VirtualInst(ce->getAsInstruction(), deleteVirtualInstruction);
+}
 
 bool NestedGepPass::runOnFunction(Function &F) {
     mod = F.getParent();
@@ -83,9 +93,9 @@ Value *NestedGepPass::tryReplacePtrToInt(PtrToIntInst *pti) {
 
     auto *pto = pti->getPointerOperand();
     if (auto *ce = dyn_cast_or_null<ConstantExpr>(pto)) {
-        auto *inst = ce->getAsInstruction();
+        auto inst = toInst(ce);
 
-        if (auto *gep = dyn_cast_or_null<GetElementPtrInst>(inst)) {
+        if (auto *gep = dyn_cast_or_null<GetElementPtrInst>(inst.get())) {
             auto &dl = mod->getDataLayout();
             auto *ptrType = gep->getPointerOperand()->getType();
 
@@ -104,7 +114,8 @@ Value *NestedGepPass::tryReplacePtrToInt(PtrToIntInst *pti) {
 Value *NestedGepPass::tryReplace(ConstantExpr *ce) {
     if (!ce) return nullptr;
 
-    auto *ins = ce->getAsInstruction();
+    auto owner = toInst(ce);
+    auto *ins = owner.get();
 
     switch (ins->getOpcode()) {
         case Instruction::Sub:
