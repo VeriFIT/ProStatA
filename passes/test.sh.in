@@ -13,6 +13,7 @@ LOG_PATH='@PROJECT_SOURCE_DIR@/../tests/tmp'
 PASS='@LIBPASSES_PATH@'
 CLANG='@LLVM_TOOLS_BINARY_DIR@/clang'
 OPT='@LLVM_TOOLS_BINARY_DIR@/opt'
+LLVM_VERSION='@LLVM_VERSION_MAJOR@'
 
 ALL=0
 GOOD=0
@@ -27,6 +28,11 @@ fi
 if [ ! -x $PASS ]; then
 	echo $0": not execute permission for user: $PASS" >&2
 	exit 1
+fi
+
+# disable new pass manager for LLVM 13+
+if [ "$LLVM_VERSION" -ge 13 ]; then
+	OPT="$OPT -enable-new-pm=0"
 fi
 
 mkdir -p "$LOG_PATH"
