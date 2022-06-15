@@ -72,7 +72,11 @@ bool EliminateConstExprPass::findConstExpr(Instruction *in) {
 bool EliminateConstExprPass::findConstExprForCall(CallInst *in) {
 
 	bool find = false;
+#if LLVM_VERSION_MAJOR >= 8
+	for (unsigned i=0, ops = in->arg_size(); i < ops ; ++i) {
+#else
 	for (unsigned i=0, ops = in->getNumArgOperands(); i < ops ; ++i) {
+#endif
 		Value *op = in->getArgOperand(i);
 		if (testConstExpr(op)) {
 			replaceConstExpr(cast<ConstantExpr>(op), i, in); // indirect recursion
