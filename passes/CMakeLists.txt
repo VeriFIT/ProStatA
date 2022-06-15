@@ -1,5 +1,8 @@
 cmake_minimum_required (VERSION 3.0)
-project (passes CXX)
+
+# FIXME: Unfortunately, C is (at least temporarily) required due to a bug
+# in LLVM 14.  See https://github.com/llvm/llvm-project/issues/53950.
+project (passes LANGUAGES C CXX)
 
 # uncomment this on Darwin if linking the plug-ins fails on undefined references
 if(APPLE)
