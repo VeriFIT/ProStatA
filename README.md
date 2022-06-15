@@ -1,5 +1,5 @@
 # ProStatA
-LLVM-based framework "Pro Statické Analyzátory". The currently supported version of LLVM is 10.0.0.
+LLVM-based framework "Pro Statické Analyzátory". The currently supported version of LLVM is 14.0.0.
 
 Requirements for MacOSX
 =======================
