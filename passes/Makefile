@@ -1,7 +1,6 @@
 
 CMAKE = cmake
-CXXFLAGS += -std=c++11 -pedantic -Wall -fPIC -fno-rtti
-CXXFLAGS += -O0 -g -DDEBUG
+CXXFLAGS += -std=c++11 -pedantic -Wall -fPIC -fno-rtti -g
 # why is problem with RTTI in clang-3.8? clang-3.4 is OK...
 
 #LLVM_DIRECTORY = /home/nika/Desktop/programs/llvm-3.8
@@ -19,6 +18,9 @@ all:
 	cd ../passes_build && $(CMAKE) ../passes
 	$(MAKE) -C ../passes_build
 	cd ../tests && ./test.sh
+
+debug: CXXFLAGS += -O0 -DDEBUG
+debug: all
 
 # or not
 local: $(LIBS)
